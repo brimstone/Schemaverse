@@ -1,0 +1,12 @@
+postgres:
+  image: postgres:9.6
+  container_name: postgres
+
+schemaverse:
+  build: .
+  container_name: schemaverse
+  tty: true
+  links:
+    - postgres:postgres
+  environment:
+    - SCHEMAVERSESLEEP=10

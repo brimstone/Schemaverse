@@ -1,0 +1,41 @@
+#!/bin/bash
+set -euo pipefail
+
+# make this variable easier to address, also tic.pl expects this name
+export PGHOST="${POSTGRES_PORT_5432_TCP_ADDR:?not declared. are you missing a --link?}"
+
+until psql \
+		-U postgres \
+		-c ''; do
+	echo "Waiting for postgres to come online"
+	sleep 2
+done
+
+echo "Postgres online"
+
+export PGDATABASE="${PGDATABASE:-schemaverse}"
+
+# first, create the database
+if createdb -h "$PGHOST" -U postgres "$PGDATABASE"; then
+
+	# add the management role
+	psql \
+		-h "$PGHOST" \
+		-U postgres \
+		-c 'create role schemaverse with login superuser;'
+fi
+
+# change to the location of our schema
+cd /opt/schema
+
+# deploy the schema changes to the postgres database
+sqitch \
+	-u postgres \
+	-f /opt/schema/sqitch.plan \
+	--engine postgres \
+	-h "$PGHOST" \
+	--db-client "$(which psql)" \
+	deploy
+
+export PGUSER=schemaverse
+exec /tic.pl
